@@ -1,52 +1,64 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
-  <title>Upload de Firmware OTA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OTA Server</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 600px;
-      margin: 40px auto;
-      padding: 20px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
+      margin: 2rem;
     }
-    h1 {
-      text-align: center;
+    .status {
+      margin-bottom: 1rem;
+      padding: 0.5rem;
+      border-radius: 4px;
+    }
+    .status.success {
+      background-color: #e0ffe0;
+      border: 1px solid #00c000;
+    }
+    .status.error {
+      background-color: #ffe0e0;
+      border: 1px solid #c00000;
     }
     form {
       display: flex;
       flex-direction: column;
+      width: 300px;
     }
     input[type="file"] {
-      margin-bottom: 10px;
+      margin-bottom: 1rem;
     }
-    button {
-      width: 120px;
-      padding: 8px;
-      background-color: #4CAF50;
+    input[type="submit"] {
+      padding: 0.5rem;
+      background-color: #007bff;
       color: #fff;
-      font-size: 14px;
       border: none;
       border-radius: 4px;
       cursor: pointer;
     }
-    .status {
-      margin-top: 20px;
-      color: #333;
+    input[type="submit"]:hover {
+      background-color: #0056b3;
     }
   </style>
 </head>
 <body>
   <h1>Upload de Firmware OTA</h1>
-  <form action="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="firmware" accept=".bin" required />
-    <button type="submit">Enviar Firmware</button>
-  </form>
 
-  {% if message %}
-  <div class="status">{{ message }}</div>
+  {% if status == "sucesso" %}
+    <div class="status success">
+      Upload realizado com sucesso! O ESP32 fará o download assim que chamar /firmware.bin.
+    </div>
+  {% elif status == "erro" %}
+    <div class="status error">
+      Ocorreu um erro no upload. Verifique se o arquivo é .bin válido.
+    </div>
   {% endif %}
+
+  <form action="{{ url_for('upload_firmware') }}" method="post" enctype="multipart/form-data">
+    <input type="file" name="file" accept=".bin" required />
+    <input type="submit" value="Enviar Firmware" />
+  </form>
 </body>
 </html>

@@ -1,85 +1,71 @@
 import os
-from flask import Flask, request, render_template, send_from_directory, jsonify
+from flask import Flask, request, redirect, url_for, send_from_directory, render_template, flash, jsonify
 
 app = Flask(__name__)
+app.secret_key = "uma_chave_aleatoria_para_flash"  # qualquer string serve
 UPLOAD_FOLDER = "uploads"
 ALLOWED_EXTENSIONS = {"bin"}
+
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-
-
-# Garante que a pasta exista
-if not os.path.isdir(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+# Garante que a pasta 'uploads' exista
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@app.route("/", methods=["GET", "POST"])
+# Rota principal: mostra o formulário de upload
+@app.route("/", methods=["GET"])
 def index():
-    """
-    Página principal com formulário de upload e status.
-    """
-    message = ""
-    if request.method == "POST":
-        # Verifica se veio um arquivo no campo "firmware"
-        if "firmware" not in request.files:
-            message = "Nenhum arquivo enviado."
-            return render_template("index.html", message=message)
+    # 'status' pode mostrar mensagens de erro/sucesso
+    status = request.args.get("status", "")
+    return render_template("index.html", status=status)
 
-        file = request.files["firmware"]
-        if file.filename == "":
-            message = "Nome de arquivo inválido."
-            return render_template("index.html", message=message)
+# Rota /upload: recebe o POST do formulário, salva firmware.bin em uploads/
+@app.route("/upload", methods=["POST"])
+def upload_firmware():
+    # 'file' é o name do <input> no formulário
+    if "file" not in request.files:
+        flash("Nenhum arquivo enviado.")
+        return redirect(url_for("index", status="erro"))
+    file = request.files["file"]
+    if file.filename == "":
+        flash("Nome de arquivo vazio.")
+        return redirect(url_for("index", status="erro"))
+    if file and allowed_file(file.filename):
+        # Salva sempre como 'firmware.bin', sobrescrevendo se já existir
+        save_path = os.path.join(app.config["UPLOAD_FOLDER"], "firmware.bin")
+        file.save(save_path)
+        flash("Upload realizado com sucesso! O ESP32 irá baixar o firmware.")
+        return redirect(url_for("index", status="sucesso"))
+    else:
+        flash("Formato inválido. Só .bin permitido.")
+        return redirect(url_for("index", status="erro"))
 
-        if file and allowed_file(file.filename):
-            # Sempre salvamos como firmware.bin (sobrescreve versões antigas)
-            destino = os.path.join(app.config["UPLOAD_FOLDER"], "firmware.bin")
-            file.save(destino)
-            message = "Upload realizado com sucesso! O ESP32 irá baixar o firmware."
-        else:
-            message = "Formato inválido. Envie um arquivo .bin."
-    return render_template("index.html", message=message)
-
+# Rota /firmware.bin: o ESP32 faz GET aqui para obter o binário
 @app.route("/firmware.bin", methods=["GET"])
 def serve_firmware():
-    """
-    Rota para o ESP32 baixar o firmware.
-    Se firmware.bin existe em uploads/, retorna-o. Caso contrário, 404.
-    """
-    caminho = os.path.join(app.config["UPLOAD_FOLDER"], "firmware.bin")
-    if os.path.isfile(caminho):
-        # force_download=False faz com que seja servido “inline,” mas o ESP32 tratará.
+    firmware_path = os.path.join(app.config["UPLOAD_FOLDER"], "firmware.bin")
+    if os.path.exists(firmware_path):
+        # Envia o 'firmware.bin' diretamente
         return send_from_directory(app.config["UPLOAD_FOLDER"], "firmware.bin", as_attachment=True)
     else:
-        # Arquivo não encontrado → ESP interpreta como "nenhuma atualização disponível"
-        return ("", 404)
+        # Se não existir, retorna 404
+        return "Firmware não encontrado", 404
 
+# Rota /confirm: ESP32 envia POST JSON {"device":"NSU123","status":"ok"} para apagar o firmware
 @app.route("/confirm", methods=["POST"])
-def confirm():
-    """
-    Rota que recebe a confirmação do ESP32.
-    Espera um JSON com {"device": "identificador", "status": "ok"}.
-    Se status == "ok", apaga firmware.bin e retorna 200.
-    """
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "JSON inválido"}), 400
-
-    # Você pode validar aqui se data.get("device") bate com algo que espera.
-    status = data.get("status", "")
-    if status == "ok":
-        caminho = os.path.join(app.config["UPLOAD_FOLDER"], "firmware.bin")
-        if os.path.isfile(caminho):
-            try:
-                os.remove(caminho)
-                return jsonify({"message": "Firmware apagado com sucesso."}), 200
-            except Exception as e:
-                return jsonify({"error": f"Falha ao apagar: {str(e)}"}), 500
-        else:
-            return jsonify({"message": "Não havia firmware para apagar."}), 200
+def confirm_update():
+    # Opcional: pode checar request.json["device"], ["status"], etc.
+    firmware_path = os.path.join(app.config["UPLOAD_FOLDER"], "firmware.bin")
+    if os.path.exists(firmware_path):
+        try:
+            os.remove(firmware_path)
+            return jsonify({"message": "Firmware apagado com sucesso."}), 200
+        except Exception as e:
+            return jsonify({"message": f"Erro ao apagar: {str(e)}"}), 500
     else:
-        return jsonify({"error": "Status inválido"}), 400
+        return jsonify({"message": "Não havia firmware para apagar."}), 200
 
 if __name__ == "__main__":
-    # Para desenvolvimento local. No Render, o gunicorn do Procfile será usado.
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    # Só roda em debug/local. No Render, o entrypoint será via gunicorn.
+    app.run(host="0.0.0.0", port=5000, debug=True)
