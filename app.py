@@ -6,6 +6,7 @@ UPLOAD_FOLDER = "uploads"
 ALLOWED_EXTENSIONS = {"bin"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
+
 # Garante que a pasta exista
 if not os.path.isdir(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
