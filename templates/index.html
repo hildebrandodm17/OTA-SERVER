@@ -22,6 +22,11 @@
       background-color: #ffe0e0;
       border: 1px solid #c00000;
     }
+    .info {
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      color: #555;
+    }
     form {
       display: flex;
       flex-direction: column;
@@ -46,6 +51,7 @@
 <body>
   <h1>Upload de Firmware OTA</h1>
 
+  <!-- Mensagem de status do upload -->
   {% if status == "sucesso" %}
     <div class="status success">
       Upload realizado com sucesso! O ESP32 fará o download assim que chamar /firmware.bin.
@@ -56,6 +62,18 @@
     </div>
   {% endif %}
 
+  <!-- Exibir data/hora da última confirmação, se houver -->
+  {% if ultima_confirmacao %}
+    <div class="info">
+      Última confirmação de firmware baixado: <strong>{{ ultima_confirmacao }}</strong>
+    </div>
+  {% else %}
+    <div class="info">
+      Nenhuma confirmação de download registrada ainda.
+    </div>
+  {% endif %}
+
+  <!-- Formulário de upload -->
   <form action="{{ url_for('upload_firmware') }}" method="post" enctype="multipart/form-data">
     <input type="file" name="file" accept=".bin" required />
     <input type="submit" value="Enviar Firmware" />
