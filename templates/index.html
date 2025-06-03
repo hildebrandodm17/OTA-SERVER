@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Upload de Firmware OTA</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    h1 {
+      text-align: center;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+    input[type="file"] {
+      margin-bottom: 10px;
+    }
+    button {
+      width: 120px;
+      padding: 8px;
+      background-color: #4CAF50;
+      color: #fff;
+      font-size: 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .status {
+      margin-top: 20px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>Upload de Firmware OTA</h1>
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="firmware" accept=".bin" required />
+    <button type="submit">Enviar Firmware</button>
+  </form>
+
+  {% if message %}
+  <div class="status">{{ message }}</div>
+  {% endif %}
+</body>
+</html>
